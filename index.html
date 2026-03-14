@@ -3,24 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Poke-Slay Tracker Ultimate</title>
+    <title>Poke-Slay Engine v2.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
     <style>
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .tab-button.active { border-bottom: 4px solid #ef4444; color: white; background: rgba(255,255,255,0.05); }
-        .status-icon { transition: all 0.2s; filter: grayscale(1) opacity(0.3); }
-        .status-active { filter: grayscale(0) opacity(1); border-color: #facc15; box-shadow: 0 0 10px rgba(250, 204, 21, 0.4); }
+        
         .rank-boss { border: 2px solid #ef4444 !important; box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
         .rank-elite { border: 2px solid #f97316 !important; box-shadow: 0 0 15px rgba(249, 115, 22, 0.3); }
+        .rank-summon { border: 2px solid #a855f7 !important; }
+        
+        .enraged { animation: pulse-red 1s infinite !important; border: 3px solid #ff0000 !important; }
+        @keyframes pulse-red { 0%, 100% { box-shadow: 0 0 10px #ff0000; } 50% { box-shadow: 0 0 30px #ff4444; filter: saturate(1.5); } }
+        
+        .buff-flash { animation: flash-gold 0.8s ease-out; }
+        @keyframes flash-gold { 0% { background: rgba(255, 215, 0, 0.4); } 100% { background: transparent; } }
+
+        .muk-transform { filter: sepia(1) hue-rotate(250deg) brightness(0.5); opacity: 0.5; }
     </style>
 </head>
 <body class="bg-[#0f172a] text-slate-200 min-h-screen font-sans">
 
     <nav class="bg-[#1e293b] flex border-b border-slate-700 sticky top-0 z-50">
-        <button id="btn-battle" onclick="showTab('battle')" class="tab-button active flex-1 py-4 font-bold text-red-400 uppercase text-xs">⚔️ Battle</button>
-        <button id="btn-admin" onclick="showTab('admin')" class="tab-button flex-1 py-4 font-bold text-yellow-400 uppercase text-xs">⚙️ Admin</button>
+        <button onclick="showTab('battle')" id="btn-battle" class="tab-button active flex-1 py-4 font-black text-xs uppercase italic">⚔️ Battle Mode</button>
+        <button onclick="showTab('admin')" id="btn-admin" class="tab-button flex-1 py-4 font-black text-xs uppercase italic">⚙️ Admin Panel</button>
     </nav>
 
     <main id="battleTab" class="tab-content active p-4">
@@ -28,12 +36,23 @@
             <header class="flex flex-wrap items-center justify-between gap-4 mb-6 bg-slate-800/50 p-4 rounded-2xl border border-slate-700">
                 <div class="flex items-center gap-4">
                     <div class="bg-slate-900 p-2 rounded-xl border border-slate-700">
-                        <label class="block text-[9px] text-slate-500 font-black mb-1">SPELERS</label>
-                        <input id="playerCount" type="number" value="1" min="1" onchange="renderBattle()" class="bg-transparent text-xl font-black w-10 text-center text-white outline-none">
+                        <label class="block text-[8px] text-slate-500 font-black mb-1 italic uppercase">Act</label>
+                        <select id="currentAct" onchange="changeAct(this.value)" class="bg-transparent font-black text-red-500 outline-none">
+                            <option value="1">ACT I</option>
+                            <option value="2">ACT II</option>
+                            <option value="3">ACT III</option>
+                        </select>
                     </div>
-                    <button onclick="addSlot()" class="bg-red-600 px-6 py-3 rounded-xl font-black uppercase text-xs shadow-lg">New Enemy</button>
+                    <div class="bg-slate-900 p-2 rounded-xl border border-slate-700">
+                        <label class="block text-[8px] text-slate-500 font-black mb-1 italic uppercase">Spelers</label>
+                        <input id="playerCount" type="number" value="1" min="1" max="3" onchange="renderBattle()" class="bg-transparent text-xl font-black w-8 text-center outline-none">
+                    </div>
+                    <button onclick="addSlot()" class="bg-red-600 hover:bg-red-500 px-6 py-3 rounded-xl font-black uppercase text-xs shadow-lg transition-all">Add Enemy</button>
                 </div>
-                <button onclick="clearShields()" class="text-[10px] bg-blue-600/20 text-blue-400 px-4 py-2 rounded-lg border border-blue-500/30 font-bold">🛡️ RESET SHIELDS</button>
+                <div class="flex gap-2">
+                    <button onclick="nextTurn()" class="bg-yellow-600 hover:bg-yellow-500 text-slate-900 px-6 py-3 rounded-xl font-black uppercase text-xs shadow-lg">Next Turn ➔</button>
+                    <button onclick="clearShields()" class="text-[10px] bg-blue-600/20 text-blue-400 px-4 py-2 rounded-lg border border-blue-500/30 font-bold uppercase">Reset Shields</button>
+                </div>
             </header>
             <div id="battleGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
@@ -41,58 +60,68 @@
 
     <main id="adminTab" class="tab-content p-4">
         <div class="max-w-5xl mx-auto space-y-8">
-			<div class="flex gap-2 bg-slate-800 p-4 rounded-2xl border border-slate-700">
-				<button onclick="exportDB()" class="flex-1 bg-green-700 hover:bg-green-600 py-2 rounded-lg font-bold text-xs">📤 BACKUP MAKEN (PC)</button>
-				<button onclick="document.getElementById('importFile').click()" class="flex-1 bg-purple-700 hover:bg-purple-600 py-2 rounded-lg font-bold text-xs">📥 BACKUP INLADEN (MOBIEL)</button>
-				<input type="file" id="importFile" class="hidden" accept=".json,application/json,text/plain" onchange="importDB(this)">
-			</div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <section id="pokeFormSection" class="bg-slate-800 p-6 rounded-2xl border border-slate-700 relative">
-                    <div id="editBadge" class="hidden absolute -top-3 left-6 bg-yellow-500 text-slate-900 px-3 py-1 rounded-full text-xs font-black uppercase">Edit Mode</div>
-                    <h2 id="formTitle" class="text-xl font-black mb-4 text-yellow-500">POKÉMON TOEVOEGEN</h2>
-                    <input id="editId" type="hidden">
-                    <div class="space-y-3 text-sm">
-                        <input id="pokeName" type="text" placeholder="Naam" class="w-full p-3 bg-slate-900 rounded-xl border border-slate-700">
-                        <input id="pokeHP" type="number" placeholder="Basis HP" class="w-full p-3 bg-slate-900 rounded-xl border border-slate-700">
-                        <select id="pokeRank" class="w-full p-3 bg-slate-900 rounded-xl border border-slate-700">
-                            <option value="Normal">Normal</option>
-                            <option value="Elite">Elite</option>
-                            <option value="Boss">Boss</option>
-                        </select>
-                        <input id="pokeImg" type="file" accept="image/*" class="text-xs">
-                        <div class="flex gap-2">
-                            <button onclick="savePokemon()" class="flex-1 bg-yellow-600 py-3 rounded-xl font-black uppercase">Save</button>
-                            <button id="cancelBtn" onclick="cancelEdit()" class="hidden bg-slate-700 px-4 rounded-xl font-bold">X</button>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-                    <h2 class="text-xl font-black mb-4 text-blue-400">STATUS EFFECT</h2>
-                    <div class="space-y-3">
-                        <input id="statusName" type="text" placeholder="Naam" class="w-full p-3 bg-slate-900 rounded-xl border border-slate-700">
-                        <input id="statusImg" type="file" accept="image/*" class="text-xs">
-                        <button onclick="saveStatus()" class="w-full bg-blue-600 py-3 rounded-xl font-black uppercase text-sm">Save Status</button>
-                    </div>
-                </section>
+            <div class="flex gap-2 bg-slate-800 p-4 rounded-2xl border border-slate-700">
+                <button onclick="exportDB()" class="flex-1 bg-green-700 py-2 rounded-lg font-bold text-xs uppercase italic">📤 Backup PC</button>
+                <button onclick="document.getElementById('importFile').click()" class="flex-1 bg-purple-700 py-2 rounded-lg font-bold text-xs uppercase italic">📥 Load Mobiel</button>
+                <input type="file" id="importFile" class="hidden" accept=".json" onchange="importDB(this)">
             </div>
 
-            <div id="libraryView" class="space-y-4">
-                <h3 class="font-black text-slate-500 text-xs tracking-widest uppercase italic">Bibliotheek</h3>
-                <div id="libraryPoke" class="grid grid-cols-3 sm:grid-cols-6 gap-3"></div>
-                <div id="libraryStatus" class="grid grid-cols-4 sm:grid-cols-8 gap-3"></div>
-            </div>
+            <section class="bg-slate-800 p-6 rounded-2xl border border-slate-700 relative">
+                <div id="editBadge" class="hidden absolute -top-3 left-6 bg-yellow-500 text-slate-900 px-3 py-1 rounded-full text-[10px] font-black uppercase">Edit Mode</div>
+                <h2 id="formTitle" class="text-xl font-black mb-4 text-yellow-500 uppercase italic">Pokémon Editor</h2>
+                <input id="editId" type="hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input id="pokeName" type="text" placeholder="Naam" class="p-3 bg-slate-900 rounded-xl border border-slate-700 text-sm">
+                    <input id="pokeHP" type="number" placeholder="Basis HP" class="p-3 bg-slate-900 rounded-xl border border-slate-700 text-sm">
+                    <select id="pokeRank" class="p-3 bg-slate-900 rounded-xl border border-slate-700 text-sm">
+                        <option value="Normal">Normal</option>
+                        <option value="Elite">Elite</option>
+                        <option value="Summon">Summon</option>
+                        <option value="Boss">Boss</option>
+                    </select>
+                    <select id="pokeAct" class="p-3 bg-slate-900 rounded-xl border border-slate-700 text-sm">
+                        <option value="1">Act 1</option>
+                        <option value="2">Act 2</option>
+                        <option value="3">Act 3</option>
+                        <option value="All">Alle Acts</option>
+                    </select>
+                    <div class="md:col-span-2">
+                        <input id="pokeImg" type="file" accept="image/*" class="w-full p-2 bg-slate-900 rounded-xl border border-slate-700 text-xs text-slate-400">
+                    </div>
+                    <div class="flex gap-2 md:col-span-2">
+                        <button onclick="savePokemon()" class="flex-1 bg-yellow-600 py-4 rounded-xl font-black uppercase italic tracking-widest">Opslaan</button>
+                        <button id="cancelBtn" onclick="cancelEdit()" class="hidden bg-slate-700 px-6 rounded-xl font-bold">X</button>
+                    </div>
+                </div>
+            </section>
+
+            <div id="libraryPoke" class="grid grid-cols-3 sm:grid-cols-6 gap-3"></div>
+
+            <section class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+                <h2 class="text-xl font-black mb-4 text-blue-400 uppercase italic">Status Effect</h2>
+                <div class="flex flex-col md:flex-row gap-4 items-end">
+                    <input id="statusName" type="text" placeholder="Naam" class="flex-1 p-3 bg-slate-900 rounded-xl border border-slate-700 text-sm">
+                    <input id="statusImg" type="file" accept="image/*" class="flex-1 p-2 bg-slate-900 rounded-xl border border-slate-700 text-xs">
+                    <button onclick="saveStatus()" class="bg-blue-600 px-8 py-3 rounded-xl font-black uppercase text-xs">Opslaan</button>
+                </div>
+                <div id="libraryStatus" class="grid grid-cols-4 sm:grid-cols-8 gap-3 mt-6"></div>
+            </section>
         </div>
     </main>
 
     <script>
         const db = new Dexie("PokeSlayDB");
-        db.version(2).stores({ pokemon: '++id, name, hp, rank, img', statuses: '++id, name, img' });
+        db.version(3).stores({ pokemon: '++id, name, hp, rank, act, img', statuses: '++id, name, img' });
 
         let activeSlots = [];
 
-        async function init() { try { await db.open(); renderLibrary(); renderBattle(); } catch (e) { console.error(e); } }
+        async function init() { 
+            try { 
+                await db.open(); 
+                renderLibrary(); 
+                renderBattle(); 
+            } catch (e) { console.error(e); } 
+        }
 
         function showTab(tab) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -104,81 +133,149 @@
 
         const toBase64 = f => new Promise(res => { if(!f) return res(null); const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
 
-        // --- BACKUP LOGICA ---
-        async function exportDB() {
-            const pokes = await db.pokemon.toArray();
-            const stats = await db.statuses.toArray();
-            const data = JSON.stringify({ pokes, stats });
-            const blob = new Blob([data], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'pokeslay_backup.json';
-            a.click();
-        }
+        // --- GAME LOGIC ---
+        async function loadPoke(idx, id) {
+            const p = await db.pokemon.get(parseInt(id));
+            const n = parseInt(document.getElementById('playerCount').value) || 1;
+            const name = p.name.toUpperCase();
+            
+            const isSummon = p.rank === 'Summon';
+            const finalHP = isSummon ? p.hp : (p.hp * n);
 
-        async function importDB(input) {
-            const file = input.files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const data = JSON.parse(e.target.result);
-                await db.pokemon.clear();
-                await db.statuses.clear();
-                await db.pokemon.bulkAdd(data.pokes);
-                await db.statuses.bulkAdd(data.stats);
-                alert("Backup succesvol ingeladen!");
-                renderLibrary();
+            activeSlots[idx] = { 
+                id: Date.now() + Math.random(), pokemonId: id, name: name,
+                hp: finalHP, maxHp: finalHP, rank: p.rank,
+                shield: (name === 'RHYHORN' ? 8 * n : 0),
+                effects: {}, extraData: {}, isEnraged: false, flash: false
             };
-            reader.readAsText(file);
+
+            // Auto-spawns
+            if (['JOLTEON', 'VAPOREON', 'FLAREON'].includes(name)) {
+                ['JOLTEON', 'VAPOREON', 'FLAREON'].forEach(async pName => { if(pName !== name) await quickAdd(pName); });
+            }
+            if (name === 'NIDOKING') await quickAdd('NIDOQUEEN');
+            if (name === 'NIDOQUEEN') await quickAdd('NIDOKING');
+            
+            if(name === 'RATICATE') spawnSummons('RATTATA', 3 * n, n > 1 ? (n === 2 ? 1 : 2) : 0);
+            if(name === 'GLOOM') spawnSummons('ODDISH', 1 * n, 0);
+
+            renderBattle();
         }
 
-        // --- REST VAN DE LOGICA ---
-        async function editPokemon(id) {
-            const p = await db.pokemon.get(id);
-            document.getElementById('editId').value = p.id;
-            document.getElementById('pokeName').value = p.name;
-            document.getElementById('pokeHP').value = p.hp;
-            document.getElementById('pokeRank').value = p.rank || 'Normal';
-            document.getElementById('formTitle').innerText = "BEWERKEN";
-            document.getElementById('editBadge').classList.remove('hidden');
-            document.getElementById('cancelBtn').classList.remove('hidden');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        async function quickAdd(name) {
+            if (activeSlots.some(s => s.name === name)) return;
+            const p = await db.pokemon.where('name').equalsIgnoreCase(name).first();
+            if (!p) return;
+            const n = parseInt(document.getElementById('playerCount').value);
+            activeSlots.push({
+                id: Date.now() + Math.random(), pokemonId: p.id, name: p.name.toUpperCase(),
+                hp: p.hp * n, maxHp: p.hp * n, rank: p.rank, shield: 0, effects: {}, extraData: {}, isEnraged: false
+            });
+            renderBattle();
         }
 
-        function cancelEdit() {
-            document.getElementById('editId').value = "";
-            document.getElementById('pokeName').value = "";
-            document.getElementById('pokeHP').value = "";
-            document.getElementById('formTitle').innerText = "POKÉMON TOEVOEGEN";
-            document.getElementById('editBadge').classList.add('hidden');
-            document.getElementById('cancelBtn').classList.add('hidden');
+        async function spawnSummons(name, count, strength, parentId = null) {
+            const p = await db.pokemon.where('name').equalsIgnoreCase(name).first();
+            if(!p) return;
+            for(let i=0; i<count; i++) {
+                activeSlots.push({
+                    id: Date.now() + i + Math.random(), pokemonId: p.id, name: p.name.toUpperCase(),
+                    hp: p.hp, maxHp: p.hp, rank: 'Summon', shield: 0, effects: {}, extraData: { parentId }
+                });
+            }
+            renderBattle();
         }
 
+        async function applyEffect(targetName, stats) {
+            const slot = activeSlots.find(s => s.name === targetName.toUpperCase() && s.hp > 0);
+            if (!slot) return;
+
+            for (const [statName, value] of Object.entries(stats)) {
+                const sData = await db.statuses.where('name').equalsIgnoreCase(statName).first();
+                if (sData) {
+                    slot.effects[sData.id] = (slot.effects[sData.id] || 0) + value;
+                }
+            }
+            slot.flash = true;
+            renderBattle();
+            setTimeout(() => { slot.flash = false; renderBattle(); }, 800);
+        }
+
+        function checkSpecialTriggers(idx) {
+            const slot = activeSlots[idx];
+            const name = slot.name;
+            const n = parseInt(document.getElementById('playerCount').value);
+
+            // Nido Duo
+            if (name === 'NIDOKING' || name === 'NIDOQUEEN') {
+                const partnerName = name === 'NIDOKING' ? 'NIDOQUEEN' : 'NIDOKING';
+                if (slot.hp > 0 && slot.hp <= (slot.maxHp * 0.5) && !slot.extraData.trig50) {
+                    slot.extraData.trig50 = true;
+                    applyEffect(partnerName, { 'STRENGTH': 1 });
+                }
+                if (slot.hp <= 0 && !slot.extraData.isDead) {
+                    slot.extraData.isDead = true;
+                    const partner = activeSlots.find(s => s.name === partnerName);
+                    if (partner) {
+                        partner.isEnraged = true;
+                        applyEffect(partnerName, { 'HASTE': 2, 'STRENGTH': 3 });
+                    }
+                }
+            }
+
+            // Eevee Trio
+            if (['JOLTEON', 'VAPOREON', 'FLAREON'].includes(name) && slot.hp <= 0 && !slot.extraData.isDead) {
+                slot.extraData.isDead = true;
+                if (name === 'JOLTEON') { applyEffect('VAPOREON', {'DEXTERITY': 2}); applyEffect('FLAREON', {'STRENGTH': 2}); }
+                if (name === 'FLAREON') { applyEffect('JOLTEON', {'HASTE': 2}); applyEffect('VAPOREON', {'DEXTERITY': 2}); }
+                if (name === 'VAPOREON') { applyEffect('JOLTEON', {'HASTE': 2}); applyEffect('FLAREON', {'STRENGTH': 2}); }
+            }
+
+            // Scizor & Muk
+            if(name === 'SCIZOR' && slot.rank === 'Boss') {
+                if(!slot.extraData.tr50 && slot.hp <= 50 * n) { slot.extraData.tr50 = true; slot.shield += 7 * n; spawnSummons('SCIZOR-C', 2 * n, 0, slot.id); }
+                if(!slot.extraData.tr30 && slot.hp <= 30 * n) { slot.extraData.tr30 = true; slot.shield += 7 * n; spawnSummons('SCIZOR-C', 2 * n, 0, slot.id); }
+                if(slot.hp <= 0) activeSlots = activeSlots.filter(s => s.extraData.parentId !== slot.id);
+            }
+            if(name === 'MUK' && slot.hp <= 0 && !slot.extraData.mkD) {
+                slot.extraData.mkD = true; slot.extraData.sav = {...slot.effects}; spawnSummons('GRIMER', 3 * n, 0, slot.id);
+            }
+            renderBattle();
+        }
+
+        function nextTurn() {
+            let grimerCount = 0;
+            activeSlots = activeSlots.filter(s => {
+                if(s.name === 'GRIMER' && s.hp <= 0) { grimerCount++; return false; }
+                if(s.name === 'GRIMER') return false; 
+                return true;
+            });
+            activeSlots.forEach(s => {
+                if(s.name === 'MUK' && s.extraData.mkD) {
+                    s.extraData.mkD = false; s.hp = 15 * grimerCount; s.maxHp = Math.max(s.maxHp, s.hp); s.effects = s.extraData.sav || {};
+                }
+            });
+            renderBattle();
+        }
+
+        // --- DATABASE & ADMIN ---
         async function savePokemon() {
             const id = document.getElementById('editId').value;
-            const name = document.getElementById('pokeName').value;
+            const name = document.getElementById('pokeName').value.toUpperCase();
             const hp = parseInt(document.getElementById('pokeHP').value);
             const rank = document.getElementById('pokeRank').value;
+            const act = document.getElementById('pokeAct').value;
             const imgFile = document.getElementById('pokeImg').files[0];
             const img = imgFile ? await toBase64(imgFile) : null;
-
-            if(id) {
-                const up = { name, hp, rank }; if(img) up.img = img;
-                await db.pokemon.update(parseInt(id), up);
-                cancelEdit();
-            } else {
-                if(!img) return alert("Plaatje verplicht!");
-                await db.pokemon.add({ name, hp, rank, img });
-            }
+            if(id) { await db.pokemon.update(parseInt(id), { name, hp, rank, act, ...(img && {img}) }); cancelEdit(); }
+            else { await db.pokemon.add({ name, hp, rank, act, img }); }
             renderLibrary(); renderBattle();
         }
 
         async function saveStatus() {
-            const name = document.getElementById('statusName').value;
+            const name = document.getElementById('statusName').value.toUpperCase();
             const img = await toBase64(document.getElementById('statusImg').files[0]);
-            if(!name || !img) return alert("Naam en Icoon verplicht!");
-            await db.statuses.add({ name, img });
+            if(name && img) await db.statuses.add({ name, img });
             renderLibrary();
         }
 
@@ -186,94 +283,107 @@
             const pokes = await db.pokemon.toArray();
             const stats = await db.statuses.toArray();
             document.getElementById('libraryPoke').innerHTML = pokes.map(p => `
-                <div onclick="editPokemon(${p.id})" class="bg-slate-900 p-2 rounded-xl border border-slate-700 text-center relative group cursor-pointer hover:bg-slate-800 transition-all">
-                    <button onclick="event.stopPropagation(); deleteItem('pokemon', ${p.id})" class="absolute -top-1 -right-1 bg-red-600 text-[8px] w-4 h-4 rounded-full text-white">X</button>
-                    <img src="${p.img}" class="h-12 w-full object-contain mb-1">
-                    <p class="text-[8px] font-black truncate uppercase">${p.name}</p>
+                <div onclick="editPokemon(${p.id})" class="bg-slate-900 p-2 rounded-xl border border-slate-700 relative text-center group cursor-pointer">
+                    <button onclick="event.stopPropagation(); deleteItem('pokemon', ${p.id})" class="absolute -top-1 -right-1 bg-red-600 w-4 h-4 rounded-full text-white text-[8px] font-black z-10">X</button>
+                    <img src="${p.img}" class="h-10 mx-auto object-contain mb-1">
+                    <p class="text-[8px] font-black uppercase truncate">${p.name}</p>
                 </div>`).join('');
             document.getElementById('libraryStatus').innerHTML = stats.map(s => `
-                <div class="bg-slate-900 p-2 rounded-xl border border-slate-700 text-center relative group">
-                    <button onclick="deleteItem('statuses', ${s.id})" class="absolute -top-1 -right-1 bg-red-600 text-[8px] w-4 h-4 rounded-full text-white">X</button>
-                    <img src="${s.img}" class="h-8 w-8 object-contain mx-auto mb-1">
-                    <p class="text-[8px] truncate font-bold uppercase">${s.name}</p>
+                <div class="bg-slate-900 p-2 rounded-xl border border-slate-700 text-center relative">
+                    <button onclick="deleteItem('statuses', ${s.id})" class="absolute -top-1 -right-1 bg-red-600 w-3 h-3 rounded-full text-white text-[8px]">X</button>
+                    <img src="${s.img}" class="h-6 mx-auto object-contain">
                 </div>`).join('');
         }
 
-        async function deleteItem(table, id) { if(confirm("Wissen?")) { await db[table].delete(id); renderLibrary(); } }
-
-        function addSlot() { activeSlots.push({ id: Date.now(), pokemonId: null, hp: 0, maxHp: 0, shield: 0, effects: {} }); renderBattle(); }
-
-        async function loadPoke(idx, id) {
-            const p = await db.pokemon.get(parseInt(id));
-            const n = parseInt(document.getElementById('playerCount').value) || 1;
-            activeSlots[idx] = { ...activeSlots[idx], pokemonId: id, hp: p.hp * n, maxHp: p.hp * n, rank: p.rank };
-            renderBattle();
+        async function exportDB() {
+            const pokes = await db.pokemon.toArray();
+            const stats = await db.statuses.toArray();
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([JSON.stringify({ pokes, stats })], { type: 'application/json' }));
+            a.download = 'pokeslay_v22.json'; a.click();
         }
 
-        function updateStat(idx, stat, v, eid = null) {
-            if(eid) { activeSlots[idx].effects[eid] = (activeSlots[idx].effects[eid] || 0) + v; if(activeSlots[idx].effects[eid] < 0) activeSlots[idx].effects[eid] = 0; }
-            else { activeSlots[idx][stat] += v; if(activeSlots[idx][stat] < 0 && stat === 'shield') activeSlots[idx][stat] = 0; }
-            renderBattle();
+        async function importDB(input) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const data = JSON.parse(e.target.result);
+                await db.pokemon.clear(); await db.statuses.clear();
+                await db.pokemon.bulkAdd(data.pokes); await db.statuses.bulkAdd(data.stats);
+                renderLibrary(); renderBattle();
+            };
+            reader.readAsText(input.files[0]);
         }
 
-        function clearShields() { activeSlots.forEach(s => s.shield = 0); renderBattle(); }
-
+        // --- RENDER BATTLE GRID ---
         async function renderBattle() {
+            const act = document.getElementById('currentAct').value;
             const pokes = await db.pokemon.toArray();
             const statuses = await db.statuses.toArray();
             const container = document.getElementById('battleGrid');
-            if(activeSlots.length === 0) { container.innerHTML = "<div class='col-span-full py-20 text-center text-slate-700 font-black uppercase tracking-widest'>Ready</div>"; return; }
+
             container.innerHTML = activeSlots.map((slot, idx) => {
                 const p = pokes.find(x => x.id == slot.pokemonId);
-                const hpPct = slot.maxHp > 0 ? (slot.hp / slot.maxHp) * 100 : 0;
+                const isMukDead = slot.name === 'MUK' && slot.extraData.mkD;
+                
                 return `
-                <div class="bg-[#1e293b] rounded-[2rem] overflow-hidden shadow-2xl ${slot.rank === 'Boss' ? 'rank-boss' : (slot.rank === 'Elite' ? 'rank-elite' : '')} flex flex-col">
+                <div class="bg-[#1e293b] rounded-[2rem] overflow-hidden shadow-2xl transition-all relative
+                    ${slot.rank==='Boss'?'rank-boss':(slot.rank==='Elite'?'rank-elite':(slot.rank==='Summon'?'rank-summon':''))} 
+                    ${slot.isEnraged?'enraged':''} 
+                    ${isMukDead?'muk-transform':''}">
+                    
+                    ${slot.flash ? `<div class="absolute inset-0 z-10 pointer-events-none buff-flash"></div>` : ''}
+
                     <div class="p-3 bg-slate-900/50 flex justify-between items-center border-b border-white/5">
                         <select onchange="loadPoke(${idx}, this.value)" class="bg-slate-800 text-[10px] p-2 rounded-xl border border-slate-700 w-full mr-8 font-black uppercase text-yellow-500">
                             <option>-- Select Enemy --</option>
-                            <optgroup label="Bosses">${pokes.filter(x => x.rank === 'Boss').map(x => `<option value="${x.id}" ${slot.pokemonId == x.id ? 'selected' : ''}>${x.name}</option>`).join('')}</optgroup>
-                            <optgroup label="Elites">${pokes.filter(x => x.rank === 'Elite').map(x => `<option value="${x.id}" ${slot.pokemonId == x.id ? 'selected' : ''}>${x.name}</option>`).join('')}</optgroup>
-                            <optgroup label="Normal">${pokes.filter(x => x.rank === 'Normal' || !x.rank).map(x => `<option value="${x.id}" ${slot.pokemonId == x.id ? 'selected' : ''}>${x.name}</option>`).join('')}</optgroup>
+                            ${['Normal','Elite','Summon','Boss'].map(rank => `
+                                <optgroup label="${rank}">
+                                    ${pokes.filter(x => x.rank === rank && (x.act == act || x.act == 'All')).map(x => `<option value="${x.id}" ${slot.pokemonId == x.id ? 'selected' : ''}>${x.name}</option>`).join('')}
+                                </optgroup>
+                            `).join('')}
                         </select>
-                        <button onclick="activeSlots.splice(${idx},1);renderBattle()" class="text-slate-600 font-black text-xl">×</button>
+                        <button onclick="activeSlots.splice(${idx},1);renderBattle()" class="text-slate-600 hover:text-red-500 font-black text-xl">×</button>
                     </div>
+
                     <div class="p-4 flex gap-4">
-                        <div class="w-20 h-20 bg-slate-900 rounded-2xl flex items-center justify-center p-2 border border-white/5 shadow-inner">
-                            ${p ? `<img src="${p.img}" class="object-contain w-full h-full">` : ''}
+                        <div class="w-20 h-20 bg-slate-900 rounded-2xl flex items-center justify-center relative">
+                            ${p ? `<img src="${p.img}" class="object-contain w-full h-full scale-110">` : ''}
+                            ${slot.isEnraged ? `<div class="absolute -bottom-2 bg-red-600 text-[7px] font-black px-2 py-0.5 rounded-full shadow-lg">ENRAGED</div>` : ''}
                         </div>
                         <div class="flex-1">
                             <div class="flex justify-between items-end mb-1">
-                                <span class="text-[8px] font-black uppercase ${slot.rank==='Boss'?'text-red-500':'text-slate-500'}">${slot.rank || 'Normal'}</span>
-                                <span class="text-2xl font-black text-white">${slot.hp}</span>
+                                <span class="text-[8px] font-black text-slate-500 uppercase">${slot.rank}</span>
+                                <span class="text-3xl font-black italic ${slot.hp <= 0 ? 'text-slate-600' : 'text-white'}">${slot.hp}</span>
                             </div>
                             <div class="h-3 bg-slate-950 rounded-full border border-white/5 overflow-hidden">
-                                <div class="h-full bg-gradient-to-r from-red-600 to-green-500" style="width: ${hpPct}%"></div>
+                                <div class="h-full bg-gradient-to-r from-red-600 to-green-500 transition-all duration-500" style="width: ${slot.maxHp>0?(slot.hp/slot.maxHp)*100:0}%"></div>
                             </div>
-                            <div class="flex gap-1 mt-2">
-                                ${[-5,-1,1,5].map(v => `<button onclick="updateStat(${idx},'hp',${v})" class="flex-1 bg-slate-800 text-[10px] py-1 rounded-lg border border-white/5 font-black">${v>0?'+'+v:v}</button>`).join('')}
+                            <div class="flex gap-1 mt-3">
+                                ${[-5,-1,1,5].map(v => `<button onclick="updateStat(${idx},'hp',${v}); checkSpecialTriggers(${idx})" class="flex-1 bg-slate-800 hover:bg-slate-700 text-[10px] py-1.5 rounded-lg font-black border border-white/5">${v>0?'+'+v:v}</button>`).join('')}
                             </div>
                         </div>
                     </div>
-                    <div class="px-4 pb-3">
+
+                    <div class="px-4 pb-4">
                         <div class="bg-blue-600/5 border border-blue-400/20 rounded-xl p-2 flex items-center gap-3">
-                            <span class="text-blue-400 font-black text-sm w-6 text-center">${slot.shield}</span>
+                            <span class="text-xl font-black text-blue-400 w-8 text-center">${slot.shield}</span>
                             <div class="flex-1 flex gap-1">
-                                ${[-5,-1,1,5].map(v => `<button onclick="updateStat(${idx},'shield',${v})" class="flex-1 bg-blue-500/10 text-[10px] py-1 rounded text-blue-300 font-black">${v>0?'+'+v:v}</button>`).join('')}
+                                ${[-5,-1,1,5].map(v => `<button onclick="updateStat(${idx},'shield',${v})" class="flex-1 bg-blue-500/10 text-[10px] py-2 rounded-lg text-blue-300 font-black border border-blue-400/10">${v>0?'+'+v:v}</button>`).join('')}
                             </div>
                         </div>
                     </div>
-                    <div class="bg-slate-950/30 p-3 grid grid-cols-4 gap-3 mt-auto border-t border-white/5">
+
+                    <div class="bg-slate-950/30 p-3 grid grid-cols-4 gap-2 border-t border-white/5">
                         ${statuses.map(s => {
                             const val = slot.effects[s.id] || 0;
-                            return `
-                            <div class="flex flex-col items-center">
-                                <div onclick="updateStat(${idx}, null, 1, ${s.id})" class="status-icon w-9 h-9 rounded-lg border-2 border-slate-800 p-1 bg-slate-900 ${val > 0 ? 'status-active' : ''}">
+                            return `<div class="flex flex-col items-center">
+                                <div class="w-10 h-10 rounded-xl border-2 border-slate-800 p-1.5 bg-slate-900">
                                     <img src="${s.img}" class="w-full h-full object-contain">
                                 </div>
                                 <div class="flex items-center gap-1 mt-1 text-[10px]">
-                                    <button onclick="updateStat(${idx}, null, -1, ${s.id})" class="text-slate-500">-</button>
+                                    <button onclick="updateStat(${idx}, null, -1, ${s.id})" class="text-slate-600">-</button>
                                     <span class="font-black ${val > 0 ? 'text-yellow-400' : 'text-slate-700'}">${val}</span>
-                                    <button onclick="updateStat(${idx}, null, 1, ${s.id})" class="text-slate-500">+</button>
+                                    <button onclick="updateStat(${idx}, null, 1, ${s.id})" class="text-slate-600">+</button>
                                 </div>
                             </div>`;
                         }).join('')}
@@ -281,6 +391,30 @@
                 </div>`;
             }).join('');
         }
+
+        // --- UTILS ---
+        function updateStat(idx, stat, v, eid = null) {
+            if(eid) { activeSlots[idx].effects[eid] = Math.max(0, (activeSlots[idx].effects[eid] || 0) + v); }
+            else { activeSlots[idx][stat] = Math.max(0, activeSlots[idx][stat] + v); }
+            renderBattle();
+        }
+        function clearShields() { activeSlots.forEach(s => s.shield = 0); renderBattle(); }
+        function addSlot() { activeSlots.push({ id: Date.now(), pokemonId: null, hp: 0, maxHp: 0, shield: 0, effects: {}, extraData: {} }); renderBattle(); }
+        function changeAct(act) { activeSlots = []; renderBattle(); }
+        async function editPokemon(id) {
+            const p = await db.pokemon.get(id);
+            document.getElementById('editId').value = p.id;
+            document.getElementById('pokeName').value = p.name;
+            document.getElementById('pokeHP').value = p.hp;
+            document.getElementById('pokeRank').value = p.rank;
+            document.getElementById('pokeAct').value = p.act || '1';
+            document.getElementById('formTitle').innerText = "Pokémon Bewerken";
+            document.getElementById('editBadge').classList.remove('hidden');
+            document.getElementById('cancelBtn').classList.remove('hidden');
+        }
+        function cancelEdit() { document.getElementById('editId').value = ""; document.getElementById('formTitle').innerText = "Pokémon Editor"; document.getElementById('editBadge').classList.add('hidden'); document.getElementById('cancelBtn').classList.add('hidden'); }
+        async function deleteItem(table, id) { if(confirm("Wissen?")) { await db[table].delete(id); renderLibrary(); } }
+
         init();
     </script>
 </body>
