@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Poke-Slay Tracker Elite</title>
+    <title>Poke-Slay Tracker Ultimate</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
     <style>
@@ -14,15 +14,13 @@
         .status-active { filter: grayscale(0) opacity(1); border-color: #facc15; box-shadow: 0 0 10px rgba(250, 204, 21, 0.4); }
         .rank-boss { border: 2px solid #ef4444 !important; box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
         .rank-elite { border: 2px solid #f97316 !important; box-shadow: 0 0 15px rgba(249, 115, 22, 0.3); }
-        .edit-pulse { animation: pulse 2s infinite; border: 2px solid #eab308; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body class="bg-[#0f172a] text-slate-200 min-h-screen font-sans">
 
     <nav class="bg-[#1e293b] flex border-b border-slate-700 sticky top-0 z-50">
-        <button id="btn-battle" onclick="showTab('battle')" class="tab-button active flex-1 py-4 font-bold text-red-400 uppercase tracking-wider text-xs sm:text-sm">⚔️ Battle Mode</button>
-        <button id="btn-admin" onclick="showTab('admin')" class="tab-button flex-1 py-4 font-bold text-yellow-400 uppercase tracking-wider text-xs sm:text-sm">⚙️ Admin & Library</button>
+        <button id="btn-battle" onclick="showTab('battle')" class="tab-button active flex-1 py-4 font-bold text-red-400 uppercase text-xs">⚔️ Battle</button>
+        <button id="btn-admin" onclick="showTab('admin')" class="tab-button flex-1 py-4 font-bold text-yellow-400 uppercase text-xs">⚙️ Admin</button>
     </nav>
 
     <main id="battleTab" class="tab-content active p-4">
@@ -30,70 +28,60 @@
             <header class="flex flex-wrap items-center justify-between gap-4 mb-6 bg-slate-800/50 p-4 rounded-2xl border border-slate-700">
                 <div class="flex items-center gap-4">
                     <div class="bg-slate-900 p-2 rounded-xl border border-slate-700">
-                        <label class="block text-[9px] text-slate-500 font-black uppercase mb-1">Spelers</label>
-                        <input id="playerCount" type="number" value="1" min="1" onchange="renderBattle()" class="bg-transparent text-xl font-black w-12 outline-none text-center text-white">
+                        <label class="block text-[9px] text-slate-500 font-black mb-1">SPELERS</label>
+                        <input id="playerCount" type="number" value="1" min="1" onchange="renderBattle()" class="bg-transparent text-xl font-black w-10 text-center text-white outline-none">
                     </div>
-                    <button onclick="addSlot()" class="bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded-xl font-black transition-all active:scale-95 shadow-lg shadow-red-900/40 uppercase text-xs">
-                        + New Enemy
-                    </button>
+                    <button onclick="addSlot()" class="bg-red-600 px-6 py-3 rounded-xl font-black uppercase text-xs shadow-lg">New Enemy</button>
                 </div>
-                <button onclick="clearShields()" class="bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white px-4 py-2 rounded-lg text-[10px] font-bold border border-blue-500/30 transition-all">🛡️ RESET ALL SHIELDS</button>
+                <button onclick="clearShields()" class="text-[10px] bg-blue-600/20 text-blue-400 px-4 py-2 rounded-lg border border-blue-500/30 font-bold">🛡️ RESET SHIELDS</button>
             </header>
             <div id="battleGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
     </main>
 
     <main id="adminTab" class="tab-content p-4">
-        <div class="max-w-5xl mx-auto space-y-12">
+        <div class="max-w-5xl mx-auto space-y-8">
+            <div class="flex gap-2 bg-slate-800 p-4 rounded-2xl border border-slate-700">
+                <button onclick="exportDB()" class="flex-1 bg-green-700 hover:bg-green-600 py-2 rounded-lg font-bold text-xs">📤 BACKUP MAKEN (PC)</button>
+                <button onclick="document.getElementById('importFile').click()" class="flex-1 bg-purple-700 hover:bg-purple-600 py-2 rounded-lg font-bold text-xs">📥 BACKUP INLADEN (MOBIEL)</button>
+                <input type="file" id="importFile" class="hidden" onchange="importDB(this)">
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <section id="pokeFormSection" class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl relative">
+                <section id="pokeFormSection" class="bg-slate-800 p-6 rounded-2xl border border-slate-700 relative">
                     <div id="editBadge" class="hidden absolute -top-3 left-6 bg-yellow-500 text-slate-900 px-3 py-1 rounded-full text-xs font-black uppercase">Edit Mode</div>
-                    <h2 id="formTitle" class="text-xl font-black mb-4 text-yellow-500 uppercase tracking-tight">Pokémon Toevoegen</h2>
+                    <h2 id="formTitle" class="text-xl font-black mb-4 text-yellow-500">POKÉMON TOEVOEGEN</h2>
                     <input id="editId" type="hidden">
-                    <div class="space-y-3">
-                        <input id="pokeName" type="text" placeholder="Naam (bijv. Gengar)" class="w-full p-3 bg-slate-900 rounded-xl border border-slate-700 focus:border-yellow-500 outline-none">
-                        <input id="pokeHP" type="number" placeholder="Basis HP (1 speler)" class="w-full p-3 bg-slate-900 rounded-xl border border-slate-700 focus:border-yellow-500 outline-none">
-                        <select id="pokeRank" class="w-full p-3 bg-slate-900 rounded-xl border border-slate-700 text-slate-300">
-                            <option value="Normal">Normal Enemy</option>
-                            <option value="Elite">Elite Monster</option>
-                            <option value="Boss">Final Boss</option>
+                    <div class="space-y-3 text-sm">
+                        <input id="pokeName" type="text" placeholder="Naam" class="w-full p-3 bg-slate-900 rounded-xl border border-slate-700">
+                        <input id="pokeHP" type="number" placeholder="Basis HP" class="w-full p-3 bg-slate-900 rounded-xl border border-slate-700">
+                        <select id="pokeRank" class="w-full p-3 bg-slate-900 rounded-xl border border-slate-700">
+                            <option value="Normal">Normal</option>
+                            <option value="Elite">Elite</option>
+                            <option value="Boss">Boss</option>
                         </select>
-                        <div id="imgUploadLabel">
-                            <label class="block text-[10px] text-slate-500 font-bold mb-1 uppercase">Afbeelding (optioneel bij edit)</label>
-                            <input id="pokeImg" type="file" accept="image/*" class="text-xs text-slate-400">
-                        </div>
+                        <input id="pokeImg" type="file" accept="image/*" class="text-xs">
                         <div class="flex gap-2">
-                            <button id="saveBtn" onclick="savePokemon()" class="flex-1 bg-yellow-600 hover:bg-yellow-500 py-4 rounded-xl font-black uppercase tracking-widest transition-all">Opslaan</button>
-                            <button id="cancelBtn" onclick="cancelEdit()" class="hidden bg-slate-700 hover:bg-slate-600 px-4 rounded-xl font-bold">Annuleer</button>
+                            <button onclick="savePokemon()" class="flex-1 bg-yellow-600 py-3 rounded-xl font-black uppercase">Save</button>
+                            <button id="cancelBtn" onclick="cancelEdit()" class="hidden bg-slate-700 px-4 rounded-xl font-bold">X</button>
                         </div>
                     </div>
                 </section>
 
                 <section class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-                    <h2 class="text-xl font-black mb-4 text-blue-400 uppercase tracking-tight">Status Effect</h2>
+                    <h2 class="text-xl font-black mb-4 text-blue-400">STATUS EFFECT</h2>
                     <div class="space-y-3">
-                        <input id="statusName" type="text" placeholder="Naam (bijv. Poison)" class="w-full p-3 bg-slate-900 rounded-xl border border-slate-700">
-                        <input id="statusImg" type="file" accept="image/*" class="text-xs text-slate-400">
-                        <button onclick="saveStatus()" class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-black uppercase tracking-widest transition-all">Status Opslaan</button>
+                        <input id="statusName" type="text" placeholder="Naam" class="w-full p-3 bg-slate-900 rounded-xl border border-slate-700">
+                        <input id="statusImg" type="file" accept="image/*" class="text-xs">
+                        <button onclick="saveStatus()" class="w-full bg-blue-600 py-3 rounded-xl font-black uppercase text-sm">Save Status</button>
                     </div>
                 </section>
             </div>
 
-            <div class="space-y-6">
-                <div class="flex justify-between items-center border-b border-slate-700 pb-4">
-                    <h3 class="text-2xl font-black uppercase tracking-tighter italic">Bibliotheek</h3>
-                    <p class="text-[10px] text-slate-500">Klik op een Pokémon om deze te bewerken</p>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
-                    <div>
-                        <h4 class="text-xs font-black text-slate-500 uppercase mb-6 tracking-[0.2em]">Enemies</h4>
-                        <div id="libraryPoke" class="grid grid-cols-3 sm:grid-cols-4 gap-4"></div>
-                    </div>
-                    <div>
-                        <h4 class="text-xs font-black text-slate-500 uppercase mb-6 tracking-[0.2em]">Status Effecten</h4>
-                        <div id="libraryStatus" class="grid grid-cols-3 sm:grid-cols-4 gap-4"></div>
-                    </div>
-                </div>
+            <div id="libraryView" class="space-y-4">
+                <h3 class="font-black text-slate-500 text-xs tracking-widest uppercase italic">Bibliotheek</h3>
+                <div id="libraryPoke" class="grid grid-cols-3 sm:grid-cols-6 gap-3"></div>
+                <div id="libraryStatus" class="grid grid-cols-4 sm:grid-cols-8 gap-3"></div>
             </div>
         </div>
     </main>
@@ -104,9 +92,7 @@
 
         let activeSlots = [];
 
-        async function init() {
-            try { await db.open(); renderLibrary(); renderBattle(); } catch (e) { console.error(e); }
-        }
+        async function init() { try { await db.open(); renderLibrary(); renderBattle(); } catch (e) { console.error(e); } }
 
         function showTab(tab) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -118,18 +104,45 @@
 
         const toBase64 = f => new Promise(res => { if(!f) return res(null); const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
 
-        // --- EDITING LOGICA ---
+        // --- BACKUP LOGICA ---
+        async function exportDB() {
+            const pokes = await db.pokemon.toArray();
+            const stats = await db.statuses.toArray();
+            const data = JSON.stringify({ pokes, stats });
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'pokeslay_backup.json';
+            a.click();
+        }
+
+        async function importDB(input) {
+            const file = input.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const data = JSON.parse(e.target.result);
+                await db.pokemon.clear();
+                await db.statuses.clear();
+                await db.pokemon.bulkAdd(data.pokes);
+                await db.statuses.bulkAdd(data.stats);
+                alert("Backup succesvol ingeladen!");
+                renderLibrary();
+            };
+            reader.readAsText(file);
+        }
+
+        // --- REST VAN DE LOGICA ---
         async function editPokemon(id) {
             const p = await db.pokemon.get(id);
             document.getElementById('editId').value = p.id;
             document.getElementById('pokeName').value = p.name;
             document.getElementById('pokeHP').value = p.hp;
             document.getElementById('pokeRank').value = p.rank || 'Normal';
-            
-            document.getElementById('formTitle').innerText = "Pokémon Bewerken";
+            document.getElementById('formTitle').innerText = "BEWERKEN";
             document.getElementById('editBadge').classList.remove('hidden');
             document.getElementById('cancelBtn').classList.remove('hidden');
-            document.getElementById('pokeFormSection').classList.add('edit-pulse');
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -137,10 +150,9 @@
             document.getElementById('editId').value = "";
             document.getElementById('pokeName').value = "";
             document.getElementById('pokeHP').value = "";
-            document.getElementById('formTitle').innerText = "Pokémon Toevoegen";
+            document.getElementById('formTitle').innerText = "POKÉMON TOEVOEGEN";
             document.getElementById('editBadge').classList.add('hidden');
             document.getElementById('cancelBtn').classList.add('hidden');
-            document.getElementById('pokeFormSection').classList.remove('edit-pulse');
         }
 
         async function savePokemon() {
@@ -151,23 +163,15 @@
             const imgFile = document.getElementById('pokeImg').files[0];
             const img = imgFile ? await toBase64(imgFile) : null;
 
-            if(!name || !hp) return alert("Naam en HP zijn verplicht!");
-
             if(id) {
-                // Update bestaande
-                const updateData = { name, hp, rank };
-                if(img) updateData.img = img;
-                await db.pokemon.update(parseInt(id), updateData);
+                const up = { name, hp, rank }; if(img) up.img = img;
+                await db.pokemon.update(parseInt(id), up);
                 cancelEdit();
             } else {
-                // Nieuwe aanmaken
-                if(!img) return alert("Plaatje verplicht voor nieuwe Pokémon!");
+                if(!img) return alert("Plaatje verplicht!");
                 await db.pokemon.add({ name, hp, rank, img });
             }
-            
-            renderLibrary();
-            renderBattle();
-            alert("Database bijgewerkt!");
+            renderLibrary(); renderBattle();
         }
 
         async function saveStatus() {
@@ -181,26 +185,22 @@
         async function renderLibrary() {
             const pokes = await db.pokemon.toArray();
             const stats = await db.statuses.toArray();
-            
             document.getElementById('libraryPoke').innerHTML = pokes.map(p => `
-                <div onclick="editPokemon(${p.id})" class="bg-slate-800 p-2 rounded-xl border border-slate-700 text-center relative group cursor-pointer hover:bg-slate-700 transition-all">
-                    <button onclick="event.stopPropagation(); deleteItem('pokemon', ${p.id})" class="absolute -top-1 -right-1 bg-red-600 text-[8px] w-4 h-4 rounded-full hidden group-hover:block text-white">X</button>
-                    <img src="${p.img}" class="h-14 w-full object-contain mb-1">
-                    <p class="text-[9px] font-black truncate uppercase">${p.name}</p>
-                    <span class="text-[7px] px-1 bg-slate-900 rounded font-bold ${p.rank==='Boss'?'text-red-500':(p.rank==='Elite'?'text-orange-500':'text-slate-500')}">${p.rank || 'Normal'}</span>
+                <div onclick="editPokemon(${p.id})" class="bg-slate-900 p-2 rounded-xl border border-slate-700 text-center relative group cursor-pointer hover:bg-slate-800 transition-all">
+                    <button onclick="event.stopPropagation(); deleteItem('pokemon', ${p.id})" class="absolute -top-1 -right-1 bg-red-600 text-[8px] w-4 h-4 rounded-full text-white">X</button>
+                    <img src="${p.img}" class="h-12 w-full object-contain mb-1">
+                    <p class="text-[8px] font-black truncate uppercase">${p.name}</p>
                 </div>`).join('');
-
             document.getElementById('libraryStatus').innerHTML = stats.map(s => `
-                <div class="bg-slate-800 p-2 rounded-xl border border-slate-700 text-center relative group">
-                    <button onclick="deleteItem('statuses', ${s.id})" class="absolute -top-1 -right-1 bg-red-600 text-[8px] w-4 h-4 rounded-full hidden group-hover:block text-white">X</button>
-                    <img src="${s.img}" class="h-10 w-full object-contain mx-auto mb-1">
-                    <p class="text-[9px] truncate font-bold uppercase">${s.name}</p>
+                <div class="bg-slate-900 p-2 rounded-xl border border-slate-700 text-center relative group">
+                    <button onclick="deleteItem('statuses', ${s.id})" class="absolute -top-1 -right-1 bg-red-600 text-[8px] w-4 h-4 rounded-full text-white">X</button>
+                    <img src="${s.img}" class="h-8 w-8 object-contain mx-auto mb-1">
+                    <p class="text-[8px] truncate font-bold uppercase">${s.name}</p>
                 </div>`).join('');
         }
 
-        async function deleteItem(table, id) { if(confirm("Definitief verwijderen uit database?")) { await db[table].delete(id); renderLibrary(); } }
+        async function deleteItem(table, id) { if(confirm("Wissen?")) { await db[table].delete(id); renderLibrary(); } }
 
-        // --- BATTLE LOGICA ---
         function addSlot() { activeSlots.push({ id: Date.now(), pokemonId: null, hp: 0, maxHp: 0, shield: 0, effects: {} }); renderBattle(); }
 
         async function loadPoke(idx, id) {
@@ -216,86 +216,64 @@
             renderBattle();
         }
 
-        function clearShields() {
-            activeSlots.forEach(s => s.shield = 0);
-            renderBattle();
-        }
+        function clearShields() { activeSlots.forEach(s => s.shield = 0); renderBattle(); }
 
         async function renderBattle() {
             const pokes = await db.pokemon.toArray();
             const statuses = await db.statuses.toArray();
             const container = document.getElementById('battleGrid');
-            
-            if(activeSlots.length === 0) {
-                container.innerHTML = "<div class='col-span-full py-32 text-center text-slate-700 font-black border-4 border-dashed border-slate-800/50 rounded-[3rem] uppercase tracking-widest'>Ready for Battle</div>";
-                return;
-            }
-
+            if(activeSlots.length === 0) { container.innerHTML = "<div class='col-span-full py-20 text-center text-slate-700 font-black uppercase tracking-widest'>Ready</div>"; return; }
             container.innerHTML = activeSlots.map((slot, idx) => {
                 const p = pokes.find(x => x.id == slot.pokemonId);
-                const rankClass = slot.rank === 'Boss' ? 'rank-boss' : (slot.rank === 'Elite' ? 'rank-elite' : '');
-                const hpPercent = slot.maxHp > 0 ? (slot.hp / slot.maxHp) * 100 : 0;
-                
+                const hpPct = slot.maxHp > 0 ? (slot.hp / slot.maxHp) * 100 : 0;
                 return `
-                <div class="bg-[#1e293b] rounded-[2rem] overflow-hidden shadow-2xl ${rankClass} flex flex-col transition-all duration-300">
+                <div class="bg-[#1e293b] rounded-[2rem] overflow-hidden shadow-2xl ${slot.rank === 'Boss' ? 'rank-boss' : (slot.rank === 'Elite' ? 'rank-elite' : '')} flex flex-col">
                     <div class="p-3 bg-slate-900/50 flex justify-between items-center border-b border-white/5">
-                        <select onchange="loadPoke(${idx}, this.value)" class="bg-slate-800 text-[10px] p-2 rounded-xl border border-slate-700 w-full mr-8 font-black uppercase text-yellow-500 outline-none">
+                        <select onchange="loadPoke(${idx}, this.value)" class="bg-slate-800 text-[10px] p-2 rounded-xl border border-slate-700 w-full mr-8 font-black uppercase text-yellow-500">
                             <option>-- Select Enemy --</option>
-                            <optgroup label="Bosses">
-                                ${pokes.filter(x => x.rank === 'Boss').map(x => `<option value="${x.id}" ${slot.pokemonId == x.id ? 'selected' : ''}>${x.name}</option>`).join('')}
-                            </optgroup>
-                            <optgroup label="Elites">
-                                ${pokes.filter(x => x.rank === 'Elite').map(x => `<option value="${x.id}" ${slot.pokemonId == x.id ? 'selected' : ''}>${x.name}</option>`).join('')}
-                            </optgroup>
-                            <optgroup label="Normal">
-                                ${pokes.filter(x => x.rank === 'Normal' || !x.rank).map(x => `<option value="${x.id}" ${slot.pokemonId == x.id ? 'selected' : ''}>${x.name}</option>`).join('')}
-                            </optgroup>
+                            <optgroup label="Bosses">${pokes.filter(x => x.rank === 'Boss').map(x => `<option value="${x.id}" ${slot.pokemonId == x.id ? 'selected' : ''}>${x.name}</option>`).join('')}</optgroup>
+                            <optgroup label="Elites">${pokes.filter(x => x.rank === 'Elite').map(x => `<option value="${x.id}" ${slot.pokemonId == x.id ? 'selected' : ''}>${x.name}</option>`).join('')}</optgroup>
+                            <optgroup label="Normal">${pokes.filter(x => x.rank === 'Normal' || !x.rank).map(x => `<option value="${x.id}" ${slot.pokemonId == x.id ? 'selected' : ''}>${x.name}</option>`).join('')}</optgroup>
                         </select>
-                        <button onclick="activeSlots.splice(${idx},1);renderBattle()" class="text-slate-600 hover:text-red-500 font-black text-xl px-2">×</button>
+                        <button onclick="activeSlots.splice(${idx},1);renderBattle()" class="text-slate-600 font-black text-xl">×</button>
                     </div>
-
-                    <div class="p-5 flex gap-5">
-                        <div class="w-24 h-24 bg-slate-900 rounded-[1.5rem] flex items-center justify-center p-2 border border-white/5 shadow-inner overflow-hidden">
-                            ${p ? `<img src="${p.img}" class="object-contain w-full h-full scale-110">` : '<span class="text-4xl opacity-5">?</span>'}
+                    <div class="p-4 flex gap-4">
+                        <div class="w-20 h-20 bg-slate-900 rounded-2xl flex items-center justify-center p-2 border border-white/5 shadow-inner">
+                            ${p ? `<img src="${p.img}" class="object-contain w-full h-full">` : ''}
                         </div>
                         <div class="flex-1">
                             <div class="flex justify-between items-end mb-1">
-                                <span class="text-[9px] font-black ${slot.rank==='Boss'?'text-red-500':'text-slate-500'} uppercase tracking-widest">${slot.rank || 'Normal'}</span>
-                                <span class="text-3xl font-black italic tracking-tighter text-white">${slot.hp}</span>
+                                <span class="text-[8px] font-black uppercase ${slot.rank==='Boss'?'text-red-500':'text-slate-500'}">${slot.rank || 'Normal'}</span>
+                                <span class="text-2xl font-black text-white">${slot.hp}</span>
                             </div>
-                            <div class="h-4 bg-slate-950 rounded-full overflow-hidden border border-white/5 p-0.5">
-                                <div class="h-full bg-gradient-to-r from-red-600 via-yellow-500 to-green-500 rounded-full transition-all duration-700" style="width: ${hpPercent}%"></div>
+                            <div class="h-3 bg-slate-950 rounded-full border border-white/5 overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-red-600 to-green-500" style="width: ${hpPct}%"></div>
                             </div>
-                            <div class="flex gap-1 mt-3">
-                                ${[-5,-1,1,5].map(v => `<button onclick="updateStat(${idx},'hp',${v})" class="flex-1 bg-slate-800 hover:bg-slate-700 text-[10px] py-2 rounded-lg font-black border border-white/5">${v>0?'+'+v:v}</button>`).join('')}
+                            <div class="flex gap-1 mt-2">
+                                ${[-5,-1,1,5].map(v => `<button onclick="updateStat(${idx},'hp',${v})" class="flex-1 bg-slate-800 text-[10px] py-1 rounded-lg border border-white/5 font-black">${v>0?'+'+v:v}</button>`).join('')}
                             </div>
                         </div>
                     </div>
-
-                    <div class="px-5 pb-4">
-                        <div class="bg-blue-600/5 border border-blue-400/20 rounded-[1.25rem] p-3 flex items-center gap-4">
-                            <div class="flex flex-col items-center">
-                                <span class="text-[8px] font-black text-blue-400 uppercase tracking-tighter">Shield</span>
-                                <span class="text-2xl font-black text-blue-400 leading-none">${slot.shield}</span>
-                            </div>
+                    <div class="px-4 pb-3">
+                        <div class="bg-blue-600/5 border border-blue-400/20 rounded-xl p-2 flex items-center gap-3">
+                            <span class="text-blue-400 font-black text-sm w-6 text-center">${slot.shield}</span>
                             <div class="flex-1 flex gap-1">
-                                ${[-5,-1,1,5].map(v => `<button onclick="updateStat(${idx},'shield',${v})" class="flex-1 bg-blue-500/10 hover:bg-blue-500/30 text-[10px] py-2 rounded-lg text-blue-300 font-black border border-blue-400/10">${v>0?'+'+v:v}</button>`).join('')}
+                                ${[-5,-1,1,5].map(v => `<button onclick="updateStat(${idx},'shield',${v})" class="flex-1 bg-blue-500/10 text-[10px] py-1 rounded text-blue-300 font-black">${v>0?'+'+v:v}</button>`).join('')}
                             </div>
                         </div>
                     </div>
-
-                    <div class="bg-slate-950/30 p-4 grid grid-cols-4 gap-4 mt-auto border-t border-white/5">
+                    <div class="bg-slate-950/30 p-3 grid grid-cols-4 gap-3 mt-auto border-t border-white/5">
                         ${statuses.map(s => {
                             const val = slot.effects[s.id] || 0;
                             return `
                             <div class="flex flex-col items-center">
-                                <div onclick="updateStat(${idx}, null, 1, ${s.id})" class="status-icon w-11 h-11 rounded-xl border-2 border-slate-800 p-1.5 bg-slate-900 cursor-pointer shadow-lg ${val > 0 ? 'status-active' : ''}">
+                                <div onclick="updateStat(${idx}, null, 1, ${s.id})" class="status-icon w-9 h-9 rounded-lg border-2 border-slate-800 p-1 bg-slate-900 ${val > 0 ? 'status-active' : ''}">
                                     <img src="${s.img}" class="w-full h-full object-contain">
                                 </div>
-                                <div class="flex items-center gap-2 mt-2">
-                                    <button onclick="updateStat(${idx}, null, -1, ${s.id})" class="w-5 h-5 flex items-center justify-center bg-slate-800 rounded-md text-[10px] text-slate-500 hover:text-white border border-white/5">-</button>
-                                    <span class="text-xs font-black ${val > 0 ? 'text-yellow-400' : 'text-slate-700'}">${val}</span>
-                                    <button onclick="updateStat(${idx}, null, 1, ${s.id})" class="w-5 h-5 flex items-center justify-center bg-slate-800 rounded-md text-[10px] text-slate-500 hover:text-white border border-white/5">+</button>
+                                <div class="flex items-center gap-1 mt-1 text-[10px]">
+                                    <button onclick="updateStat(${idx}, null, -1, ${s.id})" class="text-slate-500">-</button>
+                                    <span class="font-black ${val > 0 ? 'text-yellow-400' : 'text-slate-700'}">${val}</span>
+                                    <button onclick="updateStat(${idx}, null, 1, ${s.id})" class="text-slate-500">+</button>
                                 </div>
                             </div>`;
                         }).join('')}
@@ -303,7 +281,6 @@
                 </div>`;
             }).join('');
         }
-
         init();
     </script>
 </body>
